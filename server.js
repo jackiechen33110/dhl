@@ -12,6 +12,8 @@ import shipmentRoutes from './routes/shipments.js';
 import countryRoutes from './routes/countries.js';
 import cn23Routes from './routes/cn23.js';
 import logsRoutes from './routes/logs.js';
+import trackingRoutes from './routes/tracking.js';
+import quotationRoutes from './routes/quotations.js';
 
 // 加载环境变量
 dotenv.config();
@@ -154,6 +156,21 @@ app.get('/summary', requireLogin, (req, res) => {
   res.render('summary', { title: '统计汇总' });
 });
 
+// 轨迹追踪页面
+app.get('/tracking', requireLogin, (req, res) => {
+  res.render('tracking', { title: '轨迹追踪' });
+});
+
+// 结算管理页面
+app.get('/settlement', requireLogin, (req, res) => {
+  res.render('settlement', { title: '结算管理' });
+});
+
+// 报价管理页面
+app.get('/quotations', requireLogin, (req, res) => {
+  res.render('quotations', { title: '报价管理' });
+});
+
 // API 路由
 app.use('/api/auth', authRoutes);
 app.use('/api/customers', customerRoutes);
@@ -161,6 +178,8 @@ app.use('/api/shipments', shipmentRoutes);
 app.use('/api/countries', countryRoutes);
 app.use('/api/cn23', cn23Routes);
 app.use('/api/logs', logsRoutes);
+app.use('/api/tracking', trackingRoutes);
+app.use('/api/quotations', quotationRoutes);
 
 // 404 处理
 app.use((req, res) => {

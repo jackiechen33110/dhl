@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>轨迹追踪 - DHL 回邮单系统</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .tracking-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .tracking-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+
+    .tracking-header h1 {
+      font-size: 28px;
+      color: #333;
+      margin: 0;
+    }
+
+    .filter-section {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .filter-section select,
+    .filter-section input {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .tracking-list {
+      display: grid;
+      gap: 15px;
+    }
+
+    .tracking-item {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 20px;
+      background: #fff;
+      transition: all 0.3s ease;
+    }
+
+    .tracking-item:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .tracking-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      border-bottom: 1px solid #f0f0f0;
+      padding-bottom: 10px;
+    }
+
+    .tracking-item-title {
+      font-weight: 600;
+      color: #333;
+      font-size: 16px;
+    }
+
+    .tracking-status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-pending { background: #fff3cd; color: #856404; }
+    .status-in_transit { background: #cfe2ff; color: #084298; }
+    .status-delivered { background: #d1e7dd; color: #0f5132; }
+    .status-returned { background: #f8d7da; color: #842029; }
+    .status-lost { background: #f5c2c7; color: #842029; }
+
+    .tracking-item-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .info-field {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .info-label {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .info-value {
+      font-size: 14px;
+      color: #333;
+    }
+
+    .tracking-timeline {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #f0f0f0;
+    }
+
+    .timeline-item {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+      position: relative;
+      padding-left: 30px;
+    }
+
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 5px;
+      width: 12px;
+      height: 12px;
+      background: #0066cc;
+      border-radius: 50%;
+      border: 3px solid #fff;
+      box-shadow: 0 0 0 2px #0066cc;
+    }
+
+    .timeline-content {
+      flex: 1;
+    }
+
+    .timeline-time {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 4px;
+    }
+
+    .timeline-desc {
+      font-size: 14px;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .timeline-location {
+      font-size: 12px;
+      color: #666;
+    }
+
+    .settlement-info {
+      background: #f9f9f9;
+      border-left: 4px solid #ff9800;
+      padding: 12px;
+      margin-top: 15px;
+      border-radius: 4px;
+    }
+
+    .settlement-info.refunded {
+      border-left-color: #4caf50;
+      background: #f1f8f4;
+    }
+
+    .settlement-info.no-tracking {
+      border-left-color: #f44336;
+      background: #fef5f5;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+      background: #0066cc;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #0052a3;
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+
+    .btn-danger {
+      background: #f44336;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #da190b;
+    }
+
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 5px;
+      margin-top: 30px;
+    }
+
+    .pagination a,
+    .pagination span {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .pagination a:hover {
+      background: #f0f0f0;
+    }
+
+    .pagination .active {
+      background: #0066cc;
+      color: white;
+      border-color: #0066cc;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #999;
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .tracking-item-info {
+        grid-template-columns: 1fr;
+      }
+
+      .action-buttons {
+        flex-direction: column;
+      }
+
+      .filter-section {
+        flex-direction: column;
+      }
+
+      .filter-section select,
+      .filter-section input {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <%- include('partials/header') %>
+
+  <div class="tracking-container">
+    <div class="tracking-header">
+      <h1>📦 轨迹追踪</h1>
+      <div>
+        <button class="btn btn-primary" onclick="location.href='/dashboard'">返回仪表板</button>
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <select id="statusFilter" onchange="filterTracking()">
+        <option value="">所有状态</option>
+        <option value="pending">待发送</option>
+        <option value="in_transit">运输中</option>
+        <option value="delivered">已送达</option>
+        <option value="returned">已退回</option>
+        <option value="lost">已丢失</option>
+      </select>
+
+      <select id="settlementFilter" onchange="filterTracking()">
+        <option value="">所有结算状态</option>
+        <option value="tracking">追踪中</option>
+        <option value="no_tracking">无轨迹</option>
+        <option value="refunded">已退款</option>
+      </select>
+
+      <input type="text" id="searchInput" placeholder="搜索订单号或追踪号..." onkeyup="filterTracking()">
+    </div>
+
+    <div id="trackingList" class="tracking-list">
+      <!-- 轨迹列表将通过 JavaScript 加载 -->
+    </div>
+
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+  <%- include('partials/footer') %>
+
+  <script>
+    let currentPage = 1;
+    const itemsPerPage = 20;
+
+    async function loadTracking(page = 1) {
+      try {
+        const status = document.getElementById('statusFilter').value;
+        const settlement = document.getElementById('settlementFilter').value;
+        const search = document.getElementById('searchInput').value;
+
+        const params = new URLSearchParams({
+          page,
+          limit: itemsPerPage,
+          status: status || undefined,
+          settlement: settlement || undefined,
+          search: search || undefined
+        });
+
+        const response = await fetch(`/api/tracking/list?${params}`);
+        const result = await response.json();
+
+        if (result.ok) {
+          renderTrackingList(result.data);
+          renderPagination(result.pagination);
+        }
+      } catch (err) {
+        console.error('加载轨迹失败:', err);
+        document.getElementById('trackingList').innerHTML = '<div class="empty-state">加载失败，请重试</div>';
+      }
+    }
+
+    function renderTrackingList(data) {
+      const container = document.getElementById('trackingList');
+
+      if (data.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <p>暂无轨迹数据</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = data.map(item => `
+        <div class="tracking-item">
+          <div class="tracking-item-header">
+            <div class="tracking-item-title">订单: ${item.order_no || '未知'}</div>
+            <span class="tracking-status status-${item.tracking_status || 'pending'}">
+              ${getStatusText(item.tracking_status)}
+            </span>
+          </div>
+
+          <div class="tracking-item-info">
+            <div class="info-field">
+              <span class="info-label">客户</span>
+              <span class="info-value">${item.customer_name || '未知'}</span>
+            </div>
+            <div class="info-field">
+              <span class="info-label">追踪号</span>
+              <span class="info-value">${item.dhl_tracking_no || '未分配'}</span>
+            </div>
+            <div class="info-field">
+              <span class="info-label">目的地</span>
+              <span class="info-value">${item.country || '未知'}</span>
+            </div>
+            <div class="info-field">
+              <span class="info-label">最后更新</span>
+              <span class="info-value">${formatDate(item.timestamp)}</span>
+            </div>
+          </div>
+
+          ${item.settlement_status ? `
+            <div class="settlement-info ${item.settlement_status}">
+              <strong>结算状态:</strong> ${getSettlementText(item.settlement_status)}
+              ${item.settlement_status === 'no_tracking' ? `<br><small>无轨迹天数: ${item.no_tracking_days || 0}</small>` : ''}
+            </div>
+          ` : ''}
+
+          <div class="action-buttons">
+            <button class="btn btn-primary" onclick="viewDetails(${item.id})">查看详情</button>
+            <button class="btn btn-secondary" onclick="addTracking(${item.id})">添加轨迹</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderPagination(pagination) {
+      const container = document.getElementById('pagination');
+      let html = '';
+
+      if (pagination.page > 1) {
+        html += `<a onclick="loadTracking(${pagination.page - 1})">← 上一页</a>`;
+      }
+
+      for (let i = 1; i <= pagination.pages; i++) {
+        if (i === pagination.page) {
+          html += `<span class="active">${i}</span>`;
+        } else if (i <= 5 || i > pagination.pages - 5 || Math.abs(i - pagination.page) <= 2) {
+          html += `<a onclick="loadTracking(${i})">${i}</a>`;
+        } else if (i === 6) {
+          html += `<span>...</span>`;
+        }
+      }
+
+      if (pagination.page < pagination.pages) {
+        html += `<a onclick="loadTracking(${pagination.page + 1})">下一页 →</a>`;
+      }
+
+      container.innerHTML = html;
+    }
+
+    function getStatusText(status) {
+      const texts = {
+        'pending': '待发送',
+        'in_transit': '运输中',
+        'delivered': '已送达',
+        'returned': '已退回',
+        'lost': '已丢失'
+      };
+      return texts[status] || '未知';
+    }
+
+    function getSettlementText(status) {
+      const texts = {
+        'tracking': '追踪中',
+        'no_tracking': '无轨迹',
+        'refunded': '已退款'
+      };
+      return texts[status] || '未知';
+    }
+
+    function formatDate(date) {
+      if (!date) return '未知';
+      return new Date(date).toLocaleString('zh-CN');
+    }
+
+    function filterTracking() {
+      currentPage = 1;
+      loadTracking(1);
+    }
+
+    function viewDetails(shipmentId) {
+      window.location.href = `/shipments/detail/${shipmentId}`;
+    }
+
+    function addTracking(shipmentId) {
+      const location = prompt('请输入位置信息:');
+      const description = prompt('请输入轨迹描述:');
+      
+      if (location && description) {
+        fetch('/api/tracking/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            shipment_id: shipmentId,
+            status: 'in_transit',
+            location,
+            description
+          })
+        }).then(r => r.json()).then(result => {
+          if (result.ok) {
+            alert('轨迹已添加');
+            loadTracking(currentPage);
+          }
+        });
+      }
+    }
+
+    // 页面加载时获取数据
+    loadTracking(1);
+  </script>
+</body>
+</html>

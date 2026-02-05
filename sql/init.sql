@@ -163,3 +163,76 @@ INSERT INTO country_rules (iso2, iso3, english_name, chinese_name, cn23_required
 -- 插入默认管理员用户（密码为 admin123）
 INSERT INTO users (username, password_hash, full_name, email, role) VALUES
 ('admin', 'admin123', '系统管理员', 'admin@dhl.local', 'admin');
+
+
+-- 物流轨迹表
+CREATE TABLE IF NOT EXISTS shipment_tracking (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  shipment_id INT NOT NULL,
+  dhl_tracking_no VARCHAR(255),
+  status VARCHAR(50) NOT NULL COMMENT '轨迹状态: pending, in_transit, delivered, returned, lost',
+  location VARCHAR(255),
+  timestamp DATETIME,
+  description TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE,
+  INDEX idx_shipment_id (shipment_id),
+  INDEX idx_dhl_tracking_no (dhl_tracking_no),
+  INDEX idx_timestamp (timestamp)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 结算记录表
+CREATE TABLE IF NOT EXISTS settlement_records (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  shipment_id INT NOT NULL,
+  settlement_status ENUM('tracking', 'no_tracking', 'refunded') DEFAULT 'tracking' COMMENT '结算状态',
+  no_tracking_days INT DEFAULT 0 COMMENT '无轨迹天数',
+  last_tracking_date DATETIME COMMENT '最后一条轨迹时间',
+  refund_date DATETIME COMMENT '退款日期',
+  refund_amount DECIMAL(10,2) COMMENT '退款金额',
+  refund_reason VARCHAR(255),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE,
+  INDEX idx_shipment_id (shipment_id),
+  INDEX idx_settlement_status (settlement_status),
+  INDEX idx_refund_date (refund_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 报价表
+CREATE TABLE IF NOT EXISTS quotations (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL COMMENT '报价名称',
+  description TEXT,
+  price DECIMAL(10,2) NOT NULL COMMENT '价格',
+  currency VARCHAR(3) DEFAULT 'EUR',
+  is_default BOOLEAN DEFAULT FALSE COMMENT '是否为默认报价',
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_is_default (is_default),
+  INDEX idx_is_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 客户定制报价表
+CREATE TABLE IF NOT EXISTS customer_quotations (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  customer_id INT NOT NULL,
+  quotation_id INT NOT NULL,
+  custom_price DECIMAL(10,2) COMMENT '定制价格',
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+  FOREIGN KEY (quotation_id) REFERENCES quotations(id) ON DELETE CASCADE,
+  INDEX idx_customer_id (customer_id),
+  INDEX idx_quotation_id (quotation_id),
+  UNIQUE KEY unique_customer_quotation (customer_id, quotation_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 插入默认报价
+INSERT INTO quotations (name, description, price, currency, is_default, is_active) VALUES
+('标准回邮服务', '基础回邮物流服务', 5.99, 'EUR', 1, 1),
+('加急回邮服务', '3天内处理', 9.99, 'EUR', 0, 1),
+('VIP 回邮服务', '优先处理，24小时内处理', 15.99, 'EUR', 0, 1),
+('批量回邮服务', '100件以上优惠', 3.99, 'EUR', 0, 1);
