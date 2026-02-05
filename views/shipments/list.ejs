@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>回邮单列表</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .list-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .filter-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .filter-group {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+    .filter-item {
+      flex: 1;
+      min-width: 150px;
+    }
+    .filter-item label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+      font-size: 12px;
+    }
+    .filter-item select,
+    .filter-item input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+    }
+    .action-buttons .btn {
+      padding: 8px 16px;
+      font-size: 12px;
+    }
+    .table-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .table-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .table-actions a,
+    .table-actions button {
+      padding: 4px 8px;
+      font-size: 11px;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      background-color: var(--primary-color);
+      color: white;
+      text-decoration: none;
+    }
+    .table-actions a:hover,
+    .table-actions button:hover {
+      background-color: #0052a3;
+    }
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 5px;
+      margin-top: 20px;
+    }
+    .pagination a,
+    .pagination span {
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .pagination a:hover {
+      background-color: var(--light-color);
+    }
+    .pagination .active {
+      background-color: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+    .bulk-actions {
+      margin-bottom: 15px;
+      padding: 10px;
+      background-color: var(--light-color);
+      border-radius: 4px;
+      display: none;
+    }
+    .bulk-actions.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <%- include('../partials/header') %>
+  
+  <div class="container list-container">
+    <h1>回邮单列表</h1>
+    
+    <!-- 筛选部分 -->
+    <div class="filter-section">
+      <div class="filter-group">
+        <div class="filter-item">
+          <label>客户</label>
+          <select id="customerFilter">
+            <option value="">全部客户</option>
+          </select>
+        </div>
+        
+        <div class="filter-item">
+          <label>状态</label>
+          <select id="statusFilter">
+            <option value="">全部状态</option>
+            <option value="imported">已导入</option>
+            <option value="validated">已验证</option>
+            <option value="label_ready">标签已生成</option>
+            <option value="exported">已导出</option>
+            <option value="error">错误</option>
+          </select>
+        </div>
+        
+        <div class="filter-item">
+          <label>搜索</label>
+          <input type="text" id="searchInput" placeholder="订单号或国家代码">
+        </div>
+        
+        <div class="action-buttons">
+          <button class="btn btn-primary" onclick="applyFilters()">搜索</button>
+          <button class="btn btn-secondary" onclick="resetFilters()">重置</button>
+          <a href="/shipments/import" class="btn btn-primary">导入</a>
+          <a href="/shipments/manual" class="btn btn-secondary">手工录入</a>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 批量操作 -->
+    <div class="bulk-actions" id="bulkActions">
+      <label>
+        <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+        全选
+      </label>
+      <button class="btn btn-secondary" onclick="bulkExport()" style="margin-left: 10px;">批量导出 PDF</button>
+      <button class="btn btn-secondary" onclick="bulkValidate()" style="margin-left: 10px;">批量验证</button>
+    </div>
+    
+    <!-- 表格部分 -->
+    <div class="table-section">
+      <table class="table">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="checkAll" onchange="toggleSelectAll()"></th>
+            <th>订单号</th>
+            <th>客户</th>
+            <th>国家</th>
+            <th>城市</th>
+            <th>状态</th>
+            <th>申报价值</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="shipmentTable">
+          <tr><td colspan="8" style="text-align: center;">加载中...</td></tr>
+        </tbody>
+      </table>
+      
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+
+  <%- include('../partials/footer') %>
+
+  <script>
+    let currentPage = 1;
+    const pageSize = 50;
+    let allShipments = [];
+    let customers = [];
+
+    async function loadCustomers() {
+      try {
+        const response = await fetch('/api/customers');
+        const data = await response.json();
+        if (data.ok) {
+          customers = data.data;
+          const select = document.getElementById('customerFilter');
+          customers.forEach(c => {
+            const option = document.createElement('option');
+            option.value = c.id;
+            option.textContent = c.name;
+            select.appendChild(option);
+          });
+        }
+      } catch (err) {
+        console.error('Error loading customers:', err);
+      }
+    }
+
+    async function loadShipments() {
+      try {
+        const customerId = document.getElementById('customerFilter').value;
+        const status = document.getElementById('statusFilter').value;
+        
+        let url = `/api/shipments?page=${currentPage}&limit=${pageSize}`;
+        if (customerId) url += `&customer_id=${customerId}`;
+        if (status) url += `&status=${status}`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.ok) {
+          allShipments = data.data;
+          renderTable(allShipments);
+          renderPagination(data.total);
+        }
+      } catch (err) {
+        console.error('Error loading shipments:', err);
+      }
+    }
+
+    function renderTable(shipments) {
+      const tbody = document.getElementById('shipmentTable');
+      
+      if (shipments.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">没有找到回邮单</td></tr>';
+        return;
+      }
+
+      let html = '';
+      shipments.forEach(s => {
+        const customer = customers.find(c => c.id === s.customer_id);
+        html += `
+          <tr>
+            <td><input type="checkbox" class="shipment-checkbox" value="${s.id}"></td>
+            <td>${s.order_no || '-'}</td>
+            <td>${customer ? customer.name : '-'}</td>
+            <td>${s.country}</td>
+            <td>${s.city}</td>
+            <td><span class="badge badge-${s.status}">${s.status}</span></td>
+            <td>${s.declared_value} ${s.currency}</td>
+            <td>
+              <div class="table-actions">
+                <a href="/shipments/${s.id}">查看</a>
+                <a href="/shipments/${s.id}/edit">编辑</a>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+      
+      tbody.innerHTML = html;
+      updateBulkActionsVisibility();
+    }
+
+    function renderPagination(total) {
+      const totalPages = Math.ceil(total / pageSize);
+      const pagination = document.getElementById('pagination');
+      let html = '';
+
+      if (currentPage > 1) {
+        html += `<a onclick="goToPage(1)">首页</a>`;
+        html += `<a onclick="goToPage(${currentPage - 1})">上一页</a>`;
+      }
+
+      for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+        if (i === currentPage) {
+          html += `<span class="active">${i}</span>`;
+        } else {
+          html += `<a onclick="goToPage(${i})">${i}</a>`;
+        }
+      }
+
+      if (currentPage < totalPages) {
+        html += `<a onclick="goToPage(${currentPage + 1})">下一页</a>`;
+        html += `<a onclick="goToPage(${totalPages})">末页</a>`;
+      }
+
+      pagination.innerHTML = html;
+    }
+
+    function goToPage(page) {
+      currentPage = page;
+      loadShipments();
+    }
+
+    function applyFilters() {
+      currentPage = 1;
+      loadShipments();
+    }
+
+    function resetFilters() {
+      document.getElementById('customerFilter').value = '';
+      document.getElementById('statusFilter').value = '';
+      document.getElementById('searchInput').value = '';
+      currentPage = 1;
+      loadShipments();
+    }
+
+    function toggleSelectAll() {
+      const checkboxes = document.querySelectorAll('.shipment-checkbox');
+      const selectAll = document.getElementById('selectAll');
+      checkboxes.forEach(cb => cb.checked = selectAll.checked);
+      updateBulkActionsVisibility();
+    }
+
+    function updateBulkActionsVisibility() {
+      const checkboxes = document.querySelectorAll('.shipment-checkbox:checked');
+      const bulkActions = document.getElementById('bulkActions');
+      if (checkboxes.length > 0) {
+        bulkActions.classList.add('show');
+      } else {
+        bulkActions.classList.remove('show');
+      }
+    }
+
+    function getSelectedIds() {
+      const checkboxes = document.querySelectorAll('.shipment-checkbox:checked');
+      return Array.from(checkboxes).map(cb => parseInt(cb.value));
+    }
+
+    async function bulkValidate() {
+      const ids = getSelectedIds();
+      if (ids.length === 0) {
+        alert('请先选择回邮单');
+        return;
+      }
+
+      for (const id of ids) {
+        await fetch(`/api/shipments/${id}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'validated' })
+        });
+      }
+
+      alert(`已验证 ${ids.length} 条回邮单`);
+      loadShipments();
+    }
+
+    async function bulkExport() {
+      const ids = getSelectedIds();
+      if (ids.length === 0) {
+        alert('请先选择回邮单');
+        return;
+      }
+
+      alert('PDF 导出功能开发中...');
+    }
+
+    // 初始化
+    loadCustomers();
+    loadShipments();
+
+    // 监听复选框变化
+    document.addEventListener('change', (e) => {
+      if (e.target.classList.contains('shipment-checkbox')) {
+        updateBulkActionsVisibility();
+      }
+    });
+  </script>
+</body>
+</html>

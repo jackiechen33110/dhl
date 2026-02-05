@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>统计汇总</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <style>
+    .summary-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .summary-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .chart-container {
+      position: relative;
+      height: 300px;
+      margin-bottom: 20px;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .stat-box {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-box.imported {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    .stat-box.validated {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    .stat-box.label_ready {
+      background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+    .stat-box.exported {
+      background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    }
+    .stat-box h3 {
+      font-size: 12px;
+      margin: 0 0 8px 0;
+      opacity: 0.9;
+    }
+    .stat-box .number {
+      font-size: 28px;
+      font-weight: bold;
+    }
+    .filter-section {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+    .filter-item {
+      flex: 1;
+      min-width: 150px;
+    }
+    .filter-item label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+      font-size: 12px;
+    }
+    .filter-item select,
+    .filter-item input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .export-btn {
+      padding: 8px 16px;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .export-btn:hover {
+      background-color: #0052a3;
+    }
+    .table-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <%- include('partials/header') %>
+  
+  <div class="container summary-container">
+    <h1>统计汇总</h1>
+    
+    <!-- 筛选部分 -->
+    <div class="filter-section">
+      <div class="filter-item">
+        <label>日期范围</label>
+        <input type="date" id="startDate">
+      </div>
+      <div class="filter-item">
+        <label>至</label>
+        <input type="date" id="endDate">
+      </div>
+      <div class="filter-item">
+        <label>客户</label>
+        <select id="customerFilter">
+          <option value="">全部客户</option>
+        </select>
+      </div>
+      <button class="export-btn" onclick="applyFilters()">查询</button>
+      <button class="export-btn" onclick="exportToCSV()">导出 CSV</button>
+    </div>
+    
+    <!-- 统计卡片 -->
+    <div class="stats-grid">
+      <div class="stat-box">
+        <h3>总数</h3>
+        <div class="number" id="totalCount">0</div>
+      </div>
+      <div class="stat-box imported">
+        <h3>已导入</h3>
+        <div class="number" id="importedCount">0</div>
+      </div>
+      <div class="stat-box validated">
+        <h3>已验证</h3>
+        <div class="number" id="validatedCount">0</div>
+      </div>
+      <div class="stat-box label_ready">
+        <h3>标签已生成</h3>
+        <div class="number" id="labelReadyCount">0</div>
+      </div>
+      <div class="stat-box exported">
+        <h3>已导出</h3>
+        <div class="number" id="exportedCount">0</div>
+      </div>
+    </div>
+    
+    <!-- 图表 -->
+    <div class="summary-section">
+      <h2>按状态分布</h2>
+      <div class="chart-container">
+        <canvas id="statusChart"></canvas>
+      </div>
+    </div>
+    
+    <div class="summary-section">
+      <h2>按日期趋势</h2>
+      <div class="chart-container">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+    
+    <div class="summary-section">
+      <h2>按客户分布</h2>
+      <div class="chart-container">
+        <canvas id="customerChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- 详细表格 -->
+    <div class="table-section">
+      <h2>客户统计详情</h2>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>客户名称</th>
+            <th>总数</th>
+            <th>已导入</th>
+            <th>已验证</th>
+            <th>标签已生成</th>
+            <th>已导出</th>
+          </tr>
+        </thead>
+        <tbody id="customerStatsTable">
+          <tr><td colspan="6" style="text-align: center;">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <%- include('partials/footer') %>
+
+  <script>
+    let allShipments = [];
+    let customers = [];
+    let charts = {};
+
+    async function loadData() {
+      try {
+        // 加载回邮单数据
+        const shipmentsResponse = await fetch('/api/shipments?limit=10000');
+        const shipmentsData = await shipmentsResponse.json();
+        if (shipmentsData.ok) {
+          allShipments = shipmentsData.data;
+        }
+
+        // 加载客户数据
+        const customersResponse = await fetch('/api/customers');
+        const customersData = await customersResponse.json();
+        if (customersData.ok) {
+          customers = customersData.data;
+          populateCustomerFilter();
+        }
+
+        updateStats();
+        renderCharts();
+      } catch (err) {
+        console.error('Error loading data:', err);
+      }
+    }
+
+    function populateCustomerFilter() {
+      const select = document.getElementById('customerFilter');
+      customers.forEach(c => {
+        const option = document.createElement('option');
+        option.value = c.id;
+        option.textContent = c.name;
+        select.appendChild(option);
+      });
+    }
+
+    function getFilteredShipments() {
+      let filtered = allShipments;
+
+      const customerId = document.getElementById('customerFilter').value;
+      if (customerId) {
+        filtered = filtered.filter(s => s.customer_id === parseInt(customerId));
+      }
+
+      const startDate = document.getElementById('startDate').value;
+      if (startDate) {
+        const start = new Date(startDate);
+        filtered = filtered.filter(s => new Date(s.created_at) >= start);
+      }
+
+      const endDate = document.getElementById('endDate').value;
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59);
+        filtered = filtered.filter(s => new Date(s.created_at) <= end);
+      }
+
+      return filtered;
+    }
+
+    function updateStats() {
+      const filtered = getFilteredShipments();
+
+      const total = filtered.length;
+      const imported = filtered.filter(s => s.status === 'imported').length;
+      const validated = filtered.filter(s => s.status === 'validated').length;
+      const labelReady = filtered.filter(s => s.status === 'label_ready').length;
+      const exported = filtered.filter(s => s.status === 'exported').length;
+
+      document.getElementById('totalCount').textContent = total;
+      document.getElementById('importedCount').textContent = imported;
+      document.getElementById('validatedCount').textContent = validated;
+      document.getElementById('labelReadyCount').textContent = labelReady;
+      document.getElementById('exportedCount').textContent = exported;
+
+      updateCustomerStatsTable(filtered);
+    }
+
+    function updateCustomerStatsTable(filtered) {
+      const tbody = document.getElementById('customerStatsTable');
+      const stats = {};
+
+      filtered.forEach(s => {
+        if (!stats[s.customer_id]) {
+          stats[s.customer_id] = {
+            total: 0,
+            imported: 0,
+            validated: 0,
+            labelReady: 0,
+            exported: 0
+          };
+        }
+        stats[s.customer_id].total++;
+        if (s.status === 'imported') stats[s.customer_id].imported++;
+        else if (s.status === 'validated') stats[s.customer_id].validated++;
+        else if (s.status === 'label_ready') stats[s.customer_id].labelReady++;
+        else if (s.status === 'exported') stats[s.customer_id].exported++;
+      });
+
+      let html = '';
+      Object.entries(stats).forEach(([customerId, stat]) => {
+        const customer = customers.find(c => c.id === parseInt(customerId));
+        html += `
+          <tr>
+            <td>${customer ? customer.name : '-'}</td>
+            <td>${stat.total}</td>
+            <td>${stat.imported}</td>
+            <td>${stat.validated}</td>
+            <td>${stat.labelReady}</td>
+            <td>${stat.exported}</td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = html || '<tr><td colspan="6" style="text-align: center;">暂无数据</td></tr>';
+    }
+
+    function renderCharts() {
+      const filtered = getFilteredShipments();
+
+      // 按状态分布
+      const statusCounts = {
+        imported: filtered.filter(s => s.status === 'imported').length,
+        validated: filtered.filter(s => s.status === 'validated').length,
+        label_ready: filtered.filter(s => s.status === 'label_ready').length,
+        exported: filtered.filter(s => s.status === 'exported').length
+      };
+
+      if (charts.statusChart) charts.statusChart.destroy();
+      const statusCtx = document.getElementById('statusChart').getContext('2d');
+      charts.statusChart = new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['已导入', '已验证', '标签已生成', '已导出'],
+          datasets: [{
+            data: Object.values(statusCounts),
+            backgroundColor: ['#f093fb', '#4facfe', '#43e97b', '#fa709a']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            }
+          }
+        }
+      });
+
+      // 按日期趋势
+      const dateCounts = {};
+      filtered.forEach(s => {
+        const date = new Date(s.created_at).toLocaleDateString('zh-CN');
+        dateCounts[date] = (dateCounts[date] || 0) + 1;
+      });
+
+      if (charts.trendChart) charts.trendChart.destroy();
+      const trendCtx = document.getElementById('trendChart').getContext('2d');
+      charts.trendChart = new Chart(trendCtx, {
+        type: 'line',
+        data: {
+          labels: Object.keys(dateCounts),
+          datasets: [{
+            label: '回邮单数量',
+            data: Object.values(dateCounts),
+            borderColor: '#667eea',
+            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+
+      // 按客户分布
+      const customerCounts = {};
+      filtered.forEach(s => {
+        const customer = customers.find(c => c.id === s.customer_id);
+        const name = customer ? customer.name : '未知';
+        customerCounts[name] = (customerCounts[name] || 0) + 1;
+      });
+
+      if (charts.customerChart) charts.customerChart.destroy();
+      const customerCtx = document.getElementById('customerChart').getContext('2d');
+      charts.customerChart = new Chart(customerCtx, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(customerCounts),
+          datasets: [{
+            label: '回邮单数量',
+            data: Object.values(customerCounts),
+            backgroundColor: '#667eea'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    function applyFilters() {
+      updateStats();
+      renderCharts();
+    }
+
+    function exportToCSV() {
+      const filtered = getFilteredShipments();
+      
+      let csv = '订单号,客户,国家,城市,状态,申报价值,创建时间\n';
+      filtered.forEach(s => {
+        const customer = customers.find(c => c.id === s.customer_id);
+        csv += `${s.order_no || '-'},${customer ? customer.name : '-'},${s.country},${s.city},${s.status},${s.declared_value},${new Date(s.created_at).toLocaleString('zh-CN')}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `统计汇总_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+    }
+
+    // 初始化
+    loadData();
+
+    // 设置默认日期范围
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    document.getElementById('startDate').valueAsDate = thirtyDaysAgo;
+    document.getElementById('endDate').valueAsDate = today;
+  </script>
+</body>
+</html>

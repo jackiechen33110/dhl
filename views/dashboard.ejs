@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('partials/header') %>
+  
+  <div class="container">
+    <div class="dashboard">
+      <h1>仪表板</h1>
+      
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h3>总回邮单数</h3>
+          <p class="stat-number" id="totalShipments">-</p>
+        </div>
+        <div class="stat-card">
+          <h3>待验证</h3>
+          <p class="stat-number" id="importedShipments">-</p>
+        </div>
+        <div class="stat-card">
+          <h3>已验证</h3>
+          <p class="stat-number" id="validatedShipments">-</p>
+        </div>
+        <div class="stat-card">
+          <h3>标签已生成</h3>
+          <p class="stat-number" id="labelReadyShipments">-</p>
+        </div>
+      </div>
+      
+      <div class="dashboard-sections">
+        <div class="section">
+          <h2>快速操作</h2>
+          <div class="button-group">
+            <a href="/shipments/import" class="btn btn-primary">导入回邮单</a>
+            <a href="/shipments/manual" class="btn btn-secondary">手工录入</a>
+            <a href="/customers" class="btn btn-secondary">管理客户</a>
+            <a href="/cn23/products" class="btn btn-secondary">产品库</a>
+            <% if (isAdmin) { %>
+              <a href="/admin/countries" class="btn btn-secondary">国家规则</a>
+              <a href="/admin/users" class="btn btn-secondary">用户管理</a>
+            <% } %>
+          </div>
+        </div>
+        
+        <div class="section">
+          <h2>最近回邮单</h2>
+          <table class="table" id="recentShipments">
+            <thead>
+              <tr>
+                <th>订单号</th>
+                <th>客户</th>
+                <th>国家</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="5">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%- include('partials/footer') %>
+
+  <script>
+    async function loadStats() {
+      try {
+        const response = await fetch('/api/shipments');
+        const data = await response.json();
+        
+        if (data.ok) {
+          const shipments = data.data;
+          document.getElementById('totalShipments').textContent = shipments.length;
+          document.getElementById('importedShipments').textContent = 
+            shipments.filter(s => s.status === 'imported').length;
+          document.getElementById('validatedShipments').textContent = 
+            shipments.filter(s => s.status === 'validated').length;
+          document.getElementById('labelReadyShipments').textContent = 
+            shipments.filter(s => s.status === 'label_ready').length;
+          
+          // 显示最近的回邮单
+          const tbody = document.querySelector('#recentShipments tbody');
+          tbody.innerHTML = '';
+          
+          shipments.slice(0, 10).forEach(s => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${s.order_no || '-'}</td>
+              <td>${s.customer_id}</td>
+              <td>${s.country}</td>
+              <td><span class="badge badge-${s.status}">${s.status}</span></td>
+              <td><a href="/shipments/${s.id}" class="link">查看</a></td>
+            `;
+            tbody.appendChild(row);
+          });
+        }
+      } catch (err) {
+        console.error('Error loading stats:', err);
+      }
+    }
+    
+    loadStats();
+  </script>
+</body>
+</html>

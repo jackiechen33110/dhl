@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CN23 报关单</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .cn23-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .cn23-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .cn23-section h2 {
+      margin-bottom: 15px;
+      font-size: 16px;
+      border-bottom: 2px solid var(--primary-color);
+      padding-bottom: 10px;
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+    .form-group label {
+      font-weight: 600;
+      margin-bottom: 5px;
+      font-size: 12px;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: inherit;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+    }
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    .items-table th,
+    .items-table td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .items-table th {
+      background-color: var(--light-color);
+      font-weight: 600;
+    }
+    .items-table input {
+      width: 100%;
+      padding: 6px;
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      font-size: 12px;
+    }
+    .add-item-btn {
+      padding: 8px 16px;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .add-item-btn:hover {
+      background-color: #0052a3;
+    }
+    .remove-item-btn {
+      padding: 4px 8px;
+      background-color: var(--danger-color);
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .remove-item-btn:hover {
+      background-color: #c82333;
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .button-group .btn {
+      padding: 10px 20px;
+    }
+  </style>
+</head>
+<body>
+  <%- include('../partials/header') %>
+  
+  <div class="container cn23-container">
+    <h1>CN23 报关单</h1>
+    
+    <!-- 基本信息 -->
+    <div class="cn23-section">
+      <h2>基本信息</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label>订单号</label>
+          <input type="text" value="<%= shipment.order_no %>" disabled>
+        </div>
+        <div class="form-group">
+          <label>收货国家</label>
+          <input type="text" value="<%= shipment.country %>" disabled>
+        </div>
+        <div class="form-group">
+          <label>收货城市</label>
+          <input type="text" value="<%= shipment.city %>" disabled>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 报关信息 -->
+    <div class="cn23-section">
+      <h2>报关信息</h2>
+      <form id="cn23Form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="totalValue">总价值 *</label>
+            <input type="number" id="totalValue" name="total_value" step="0.01" required placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label for="currency">货币 *</label>
+            <select id="currency" name="currency" required>
+              <option value="EUR">EUR (欧元)</option>
+              <option value="USD">USD (美元)</option>
+              <option value="GBP">GBP (英镑)</option>
+              <option value="CNY">CNY (人民币)</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="reasonForExport">出口原因 *</label>
+            <select id="reasonForExport" name="reason_for_export" required>
+              <option value="">-- 请选择 --</option>
+              <option value="Return">退货</option>
+              <option value="Repair">维修</option>
+              <option value="Sample">样品</option>
+              <option value="Gift">礼物</option>
+              <option value="Other">其他</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="incoterm">贸易术语 *</label>
+            <select id="incoterm" name="incoterm" required>
+              <option value="">-- 请选择 --</option>
+              <option value="DDP">DDP (目的地完税后交货)</option>
+              <option value="DDU">DDU (目的地未完税交货)</option>
+              <option value="CIF">CIF (成本、保险费加运费)</option>
+              <option value="FOB">FOB (船上交货)</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="remarks">备注</label>
+          <textarea id="remarks" name="remarks" rows="3" placeholder="输入备注信息"></textarea>
+        </div>
+      </form>
+    </div>
+    
+    <!-- 产品清单 -->
+    <div class="cn23-section">
+      <h2>产品清单</h2>
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th>描述</th>
+            <th>HS 代码</th>
+            <th>原产国</th>
+            <th>数量</th>
+            <th>净重 (kg)</th>
+            <th>单价</th>
+            <th>总价</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="itemsTable">
+          <tr>
+            <td colspan="8" style="text-align: center;">点击下方按钮添加产品</td>
+          </tr>
+        </tbody>
+      </table>
+      <button class="add-item-btn" onclick="addItem()">+ 添加产品</button>
+    </div>
+    
+    <!-- 操作按钮 -->
+    <div class="button-group">
+      <button class="btn btn-primary" onclick="saveCN23()">保存</button>
+      <a href="/shipments/<%= shipment.id %>" class="btn btn-secondary">返回详情</a>
+    </div>
+  </div>
+
+  <%- include('../partials/footer') %>
+
+  <script>
+    const shipmentId = <%= shipment.id %>;
+    let items = [];
+
+    async function loadCN23Form() {
+      try {
+        const response = await fetch(`/api/cn23/forms/${shipmentId}`);
+        const data = await response.json();
+        
+        if (data.ok && data.data) {
+          const form = data.data;
+          document.getElementById('totalValue').value = form.total_value || '';
+          document.getElementById('currency').value = form.currency || 'EUR';
+          document.getElementById('reasonForExport').value = form.reason_for_export || '';
+          document.getElementById('incoterm').value = form.incoterm || '';
+          
+          if (form.form_data) {
+            items = JSON.parse(form.form_data);
+            renderItemsTable();
+          }
+        }
+      } catch (err) {
+        console.error('Error loading CN23 form:', err);
+      }
+    }
+
+    function renderItemsTable() {
+      const tbody = document.getElementById('itemsTable');
+      
+      if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">点击下方按钮添加产品</td></tr>';
+        return;
+      }
+
+      let html = '';
+      items.forEach((item, index) => {
+        html += `
+          <tr>
+            <td><input type="text" value="${item.description || ''}" onchange="updateItem(${index}, 'description', this.value)"></td>
+            <td><input type="text" value="${item.hs_code || ''}" onchange="updateItem(${index}, 'hs_code', this.value)"></td>
+            <td><input type="text" value="${item.origin_country || ''}" onchange="updateItem(${index}, 'origin_country', this.value)"></td>
+            <td><input type="number" value="${item.quantity || 1}" onchange="updateItem(${index}, 'quantity', this.value)"></td>
+            <td><input type="number" value="${item.net_weight_kg || 0}" step="0.01" onchange="updateItem(${index}, 'net_weight_kg', this.value)"></td>
+            <td><input type="number" value="${item.unit_value || 0}" step="0.01" onchange="updateItem(${index}, 'unit_value', this.value)"></td>
+            <td><input type="number" value="${item.total_value || 0}" step="0.01" readonly></td>
+            <td><button class="remove-item-btn" onclick="removeItem(${index})">删除</button></td>
+          </tr>
+        `;
+      });
+      
+      tbody.innerHTML = html;
+    }
+
+    function addItem() {
+      items.push({
+        description: '',
+        hs_code: '',
+        origin_country: '',
+        quantity: 1,
+        net_weight_kg: 0,
+        unit_value: 0,
+        total_value: 0
+      });
+      renderItemsTable();
+    }
+
+    function removeItem(index) {
+      items.splice(index, 1);
+      renderItemsTable();
+    }
+
+    function updateItem(index, field, value) {
+      items[index][field] = field === 'quantity' || field === 'net_weight_kg' || field === 'unit_value' ? parseFloat(value) : value;
+      
+      // 计算总价
+      if (field === 'quantity' || field === 'unit_value') {
+        items[index].total_value = (items[index].quantity || 1) * (items[index].unit_value || 0);
+        renderItemsTable();
+      }
+    }
+
+    async function saveCN23() {
+      const totalValue = document.getElementById('totalValue').value;
+      const currency = document.getElementById('currency').value;
+      const reasonForExport = document.getElementById('reasonForExport').value;
+      const incoterm = document.getElementById('incoterm').value;
+
+      if (!totalValue || !currency || !reasonForExport || !incoterm) {
+        alert('请填写所有必填项');
+        return;
+      }
+
+      if (items.length === 0) {
+        alert('请至少添加一个产品');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/cn23/forms/${shipmentId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            total_value: parseFloat(totalValue),
+            currency,
+            reason_for_export: reasonForExport,
+            incoterm,
+            form_data: JSON.stringify(items)
+          })
+        });
+
+        const data = await response.json();
+        
+        if (data.ok) {
+          alert('CN23 表单已保存');
+          window.location.href = `/shipments/${shipmentId}`;
+        } else {
+          alert('保存失败: ' + (data.error || '未知错误'));
+        }
+      } catch (err) {
+        alert('保存失败: ' + err.message);
+      }
+    }
+
+    // 初始化
+    loadCN23Form();
+  </script>
+</body>
+</html>

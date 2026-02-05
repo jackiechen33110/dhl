@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>客户管理</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .customers-container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .customer-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    .form-group input:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .table-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .table-actions button {
+      padding: 4px 8px;
+      font-size: 11px;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      background-color: var(--primary-color);
+      color: white;
+    }
+    .table-actions button:hover {
+      background-color: #0052a3;
+    }
+    .table-actions .delete-btn {
+      background-color: var(--danger-color);
+    }
+    .table-actions .delete-btn:hover {
+      background-color: #c82333;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal.show {
+      display: flex;
+    }
+    .modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .modal-header h2 {
+      margin: 0;
+    }
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: var(--text-light);
+    }
+  </style>
+</head>
+<body>
+  <%- include('partials/header') %>
+  
+  <div class="container customers-container">
+    <h1>客户管理</h1>
+    
+    <!-- 添加客户表单 -->
+    <div class="customer-section">
+      <h2>添加新客户</h2>
+      <form id="addCustomerForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="customerCode">客户代码 *</label>
+            <input type="text" id="customerCode" name="customer_code" required placeholder="例如: CUST001">
+          </div>
+          <div class="form-group">
+            <label for="customerName">客户名称 *</label>
+            <input type="text" id="customerName" name="name" required placeholder="例如: ABC 公司">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="customerRemark">备注</label>
+          <textarea id="customerRemark" name="remark" placeholder="输入客户备注信息"></textarea>
+        </div>
+        <div class="button-group">
+          <button type="submit" class="btn btn-primary">添加客户</button>
+          <button type="reset" class="btn btn-secondary">清空</button>
+        </div>
+      </form>
+    </div>
+    
+    <!-- 客户列表 -->
+    <div class="customer-section">
+      <h2>客户列表</h2>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>客户代码</th>
+            <th>客户名称</th>
+            <th>备注</th>
+            <th>创建时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="customerTable">
+          <tr><td colspan="5" style="text-align: center;">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 编辑模态框 -->
+  <div class="modal" id="editModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>编辑客户</h2>
+        <button class="close-btn" onclick="closeModal()">&times;</button>
+      </div>
+      <form id="editCustomerForm">
+        <input type="hidden" id="editCustomerId">
+        <div class="form-group">
+          <label for="editCustomerCode">客户代码</label>
+          <input type="text" id="editCustomerCode" disabled>
+        </div>
+        <div class="form-group">
+          <label for="editCustomerName">客户名称</label>
+          <input type="text" id="editCustomerName" required>
+        </div>
+        <div class="form-group">
+          <label for="editCustomerRemark">备注</label>
+          <textarea id="editCustomerRemark"></textarea>
+        </div>
+        <div class="button-group">
+          <button type="submit" class="btn btn-primary">保存</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <%- include('partials/footer') %>
+
+  <script>
+    let customers = [];
+
+    async function loadCustomers() {
+      try {
+        const response = await fetch('/api/customers');
+        const data = await response.json();
+        
+        if (data.ok) {
+          customers = data.data;
+          renderTable();
+        }
+      } catch (err) {
+        console.error('Error loading customers:', err);
+      }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('customerTable');
+      
+      if (customers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">暂无客户</td></tr>';
+        return;
+      }
+
+      let html = '';
+      customers.forEach(c => {
+        const date = new Date(c.created_at).toLocaleDateString('zh-CN');
+        html += `
+          <tr>
+            <td>${c.customer_code}</td>
+            <td>${c.name}</td>
+            <td>${c.remark || '-'}</td>
+            <td>${date}</td>
+            <td>
+              <div class="table-actions">
+                <button onclick="editCustomer(${c.id})">编辑</button>
+                <button class="delete-btn" onclick="deleteCustomer(${c.id})">删除</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+      
+      tbody.innerHTML = html;
+    }
+
+    document.getElementById('addCustomerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = {
+        customer_code: document.getElementById('customerCode').value,
+        name: document.getElementById('customerName').value,
+        remark: document.getElementById('customerRemark').value
+      };
+
+      try {
+        const response = await fetch('/api/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+        
+        if (data.ok) {
+          alert('客户添加成功');
+          document.getElementById('addCustomerForm').reset();
+          loadCustomers();
+        } else {
+          alert('添加失败: ' + (data.error || '未知错误'));
+        }
+      } catch (err) {
+        alert('添加失败: ' + err.message);
+      }
+    });
+
+    function editCustomer(id) {
+      const customer = customers.find(c => c.id === id);
+      if (!customer) return;
+
+      document.getElementById('editCustomerId').value = id;
+      document.getElementById('editCustomerCode').value = customer.customer_code;
+      document.getElementById('editCustomerName').value = customer.name;
+      document.getElementById('editCustomerRemark').value = customer.remark || '';
+      
+      document.getElementById('editModal').classList.add('show');
+    }
+
+    function closeModal() {
+      document.getElementById('editModal').classList.remove('show');
+    }
+
+    document.getElementById('editCustomerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const id = document.getElementById('editCustomerId').value;
+      const name = document.getElementById('editCustomerName').value;
+      const remark = document.getElementById('editCustomerRemark').value;
+
+      // 注意：这里需要在后端添加 PUT 路由来支持编辑
+      // 目前 API 中没有编辑客户的接口，可以后续添加
+      alert('编辑功能开发中');
+      closeModal();
+    });
+
+    async function deleteCustomer(id) {
+      if (!confirm('确定要删除此客户吗？')) return;
+
+      try {
+        const response = await fetch(`/api/customers/${id}`, {
+          method: 'DELETE'
+        });
+
+        const data = await response.json();
+        
+        if (data.ok) {
+          alert('客户已删除');
+          loadCustomers();
+        } else {
+          alert('删除失败');
+        }
+      } catch (err) {
+        alert('删除失败: ' + err.message);
+      }
+    }
+
+    // 初始化
+    loadCustomers();
+
+    // 点击模态框外部关闭
+    document.getElementById('editModal').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('editModal')) {
+        closeModal();
+      }
+    });
+  </script>
+</body>
+</html>

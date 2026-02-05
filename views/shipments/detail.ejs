@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>回邮单详情</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .detail-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .detail-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .detail-section h2 {
+      margin-bottom: 15px;
+      font-size: 16px;
+      border-bottom: 2px solid var(--primary-color);
+      padding-bottom: 10px;
+    }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+    }
+    .detail-item {
+      display: flex;
+      flex-direction: column;
+    }
+    .detail-label {
+      font-weight: 600;
+      color: var(--text-light);
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+    .detail-value {
+      font-size: 14px;
+      color: var(--text-color);
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .status-imported {
+      background-color: #d1ecf1;
+      color: #0c5460;
+    }
+    .status-validated {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .status-label_ready {
+      background-color: #cfe2ff;
+      color: #084298;
+    }
+    .status-exported {
+      background-color: #d1e7dd;
+      color: #0f5132;
+    }
+    .status-error {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .cn23-items {
+      margin-top: 15px;
+    }
+    .cn23-items table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .cn23-items th,
+    .cn23-items td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .cn23-items th {
+      background-color: var(--light-color);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <%- include('../partials/header') %>
+  
+  <div class="container detail-container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h1>回邮单详情</h1>
+      <div class="action-buttons">
+        <a href="/shipments" class="btn btn-secondary">返回列表</a>
+        <a href="/shipments/<%= shipment.id %>/edit" class="btn btn-primary">编辑</a>
+      </div>
+    </div>
+    
+    <!-- 基本信息 -->
+    <div class="detail-section">
+      <h2>基本信息</h2>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <div class="detail-label">订单号</div>
+          <div class="detail-value"><%= shipment.order_no || '-' %></div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">客户</div>
+          <div class="detail-value" id="customerName">加载中...</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">状态</div>
+          <div class="detail-value">
+            <span class="status-badge status-<%= shipment.status %>"><%= shipment.status %></span>
+          </div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">DHL 跟踪号</div>
+          <div class="detail-value"><%= shipment.dhl_tracking_no || '-' %></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 收货地址 -->
+    <div class="detail-section">
+      <h2>收货地址</h2>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <div class="detail-label">国家</div>
+          <div class="detail-value"><%= shipment.country %></div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">城市</div>
+          <div class="detail-value"><%= shipment.city %></div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">邮编</div>
+          <div class="detail-value"><%= shipment.postcode %></div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">街道</div>
+          <div class="detail-value"><%= shipment.street %></div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">房号</div>
+          <div class="detail-value"><%= shipment.house_no || '-' %></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 产品信息 -->
+    <div class="detail-section">
+      <h2>产品信息</h2>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <div class="detail-label">产品名称</div>
+          <div class="detail-value"><%= shipment.product || '-' %></div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">数量</div>
+          <div class="detail-value"><%= shipment.quantity %></div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">申报价值</div>
+          <div class="detail-value"><%= shipment.declared_value %> <%= shipment.currency %></div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">分类</div>
+          <div class="detail-value"><%= shipment.classification %></div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">需要报关</div>
+          <div class="detail-value"><%= shipment.need_customs ? '是' : '否' %></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- CN23 报关信息 -->
+    <% if (shipment.need_customs) { %>
+    <div class="detail-section">
+      <h2>CN23 报关信息</h2>
+      <div id="cn23Info">加载中...</div>
+      <div class="action-buttons">
+        <a href="/shipments/<%= shipment.id %>/cn23" class="btn btn-primary">编辑 CN23 表单</a>
+      </div>
+    </div>
+    <% } %>
+    
+    <!-- 备注 -->
+    <div class="detail-section">
+      <h2>备注</h2>
+      <div class="detail-value"><%= shipment.remark || '无备注' %></div>
+    </div>
+    
+    <!-- 操作日志 -->
+    <div class="detail-section">
+      <h2>操作日志</h2>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>操作</th>
+            <th>用户</th>
+            <th>时间</th>
+            <th>详情</th>
+          </tr>
+        </thead>
+        <tbody id="logsTable">
+          <tr><td colspan="4">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <%- include('../partials/footer') %>
+
+  <script>
+    const shipmentId = <%= shipment.id %>;
+
+    async function loadCustomerName() {
+      try {
+        const response = await fetch('/api/customers');
+        const data = await response.json();
+        if (data.ok) {
+          const customer = data.data.find(c => c.id === <%= shipment.customer_id %>);
+          if (customer) {
+            document.getElementById('customerName').textContent = customer.name;
+          }
+        }
+      } catch (err) {
+        console.error('Error loading customer:', err);
+      }
+    }
+
+    async function loadCn23Info() {
+      try {
+        const response = await fetch(`/api/cn23/forms/${shipmentId}`);
+        const data = await response.json();
+        
+        if (data.ok && data.data) {
+          const form = data.data;
+          let html = `
+            <div class="detail-grid">
+              <div class="detail-item">
+                <div class="detail-label">总价值</div>
+                <div class="detail-value">${form.total_value || '-'} ${form.currency}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">出口原因</div>
+                <div class="detail-value">${form.reason_for_export || '-'}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">贸易术语</div>
+                <div class="detail-value">${form.incoterm || '-'}</div>
+              </div>
+            </div>
+          `;
+          
+          if (form.form_data) {
+            const items = JSON.parse(form.form_data);
+            if (Array.isArray(items) && items.length > 0) {
+              html += `
+                <div class="cn23-items">
+                  <h3 style="margin: 15px 0 10px 0;">产品清单</h3>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>描述</th>
+                        <th>HS 代码</th>
+                        <th>数量</th>
+                        <th>单价</th>
+                        <th>总价</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+              `;
+              items.forEach(item => {
+                html += `
+                  <tr>
+                    <td>${item.description || '-'}</td>
+                    <td>${item.hs_code || '-'}</td>
+                    <td>${item.quantity || '-'}</td>
+                    <td>${item.unit_value || '-'}</td>
+                    <td>${item.total_value || '-'}</td>
+                  </tr>
+                `;
+              });
+              html += `
+                    </tbody>
+                  </table>
+                </div>
+              `;
+            }
+          }
+          
+          document.getElementById('cn23Info').innerHTML = html;
+        }
+      } catch (err) {
+        console.error('Error loading CN23 info:', err);
+      }
+    }
+
+    async function loadOperationLogs() {
+      try {
+        const response = await fetch('/api/logs');
+        const data = await response.json();
+        
+        if (data.ok) {
+          const logs = data.data.filter(log => log.target_id === shipmentId && log.target_type === 'shipment');
+          const tbody = document.getElementById('logsTable');
+          
+          if (logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4">暂无操作日志</td></tr>';
+            return;
+          }
+          
+          let html = '';
+          logs.forEach(log => {
+            const date = new Date(log.created_at).toLocaleString('zh-CN');
+            html += `
+              <tr>
+                <td>${log.action}</td>
+                <td>${log.full_name || '-'}</td>
+                <td>${date}</td>
+                <td>${log.details || '-'}</td>
+              </tr>
+            `;
+          });
+          
+          tbody.innerHTML = html;
+        }
+      } catch (err) {
+        console.error('Error loading logs:', err);
+      }
+    }
+
+    // 初始化
+    loadCustomerName();
+    <% if (shipment.need_customs) { %>
+    loadCn23Info();
+    <% } %>
+    loadOperationLogs();
+  </script>
+</body>
+</html>

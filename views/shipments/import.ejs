@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>导入回邮单</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .import-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .import-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .file-upload-area {
+      border: 2px dashed var(--border-color);
+      border-radius: 8px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .file-upload-area:hover {
+      border-color: var(--primary-color);
+      background-color: var(--light-color);
+    }
+    .file-upload-area.dragover {
+      border-color: var(--primary-color);
+      background-color: #e3f2fd;
+    }
+    .file-input {
+      display: none;
+    }
+    .preview-table {
+      margin-top: 20px;
+      overflow-x: auto;
+    }
+    .preview-table table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .preview-table th,
+    .preview-table td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .preview-table th {
+      background-color: var(--light-color);
+      font-weight: 600;
+    }
+    .error-row {
+      background-color: #ffebee;
+    }
+    .error-msg {
+      color: var(--danger-color);
+      font-size: 12px;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 20px;
+      background-color: var(--light-color);
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .progress-fill {
+      height: 100%;
+      background-color: var(--success-color);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <%- include('../partials/header') %>
+  
+  <div class="container import-container">
+    <h1>导入回邮单</h1>
+    
+    <div class="import-section">
+      <h2>第一步：选择文件</h2>
+      <p>支持 CSV 和 Excel (xlsx) 格式的文件</p>
+      
+      <div class="file-upload-area" id="uploadArea">
+        <p style="font-size: 16px; margin-bottom: 10px;">📁 拖拽文件到此处或点击选择</p>
+        <p style="font-size: 12px; color: var(--text-light);">支持格式: .csv, .xlsx</p>
+        <input type="file" id="fileInput" class="file-input" accept=".csv,.xlsx">
+      </div>
+    </div>
+    
+    <div class="import-section" id="previewSection" style="display: none;">
+      <h2>第二步：预览数据</h2>
+      <p>请检查数据是否正确，然后点击导入</p>
+      
+      <div class="preview-table" id="previewTable"></div>
+      
+      <div id="validationErrors" style="display: none;">
+        <h3 style="color: var(--danger-color); margin: 20px 0 10px 0;">⚠️ 发现以下错误</h3>
+        <div id="errorsList" style="background-color: #ffebee; padding: 15px; border-radius: 4px; color: var(--danger-color);"></div>
+      </div>
+    </div>
+    
+    <div class="import-section" id="importSection" style="display: none;">
+      <h2>第三步：导入进度</h2>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <p id="progressText">准备导入...</p>
+    </div>
+    
+    <div class="button-group">
+      <button class="btn btn-secondary" onclick="resetImport()">重新开始</button>
+      <button class="btn btn-primary" id="importBtn" style="display: none;" onclick="startImport()">导入数据</button>
+      <a href="/shipments" class="btn btn-secondary">返回列表</a>
+    </div>
+  </div>
+
+  <%- include('../partials/footer') %>
+
+  <script>
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    let selectedFile = null;
+    let parsedData = [];
+
+    // 文件拖拽
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleFileSelect(files[0]);
+      }
+    });
+
+    // 点击上传
+    uploadArea.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleFileSelect(e.target.files[0]);
+      }
+    });
+
+    async function handleFileSelect(file) {
+      selectedFile = file;
+      const fileName = file.name;
+      const fileExt = fileName.split('.').pop().toLowerCase();
+
+      if (!['csv', 'xlsx'].includes(fileExt)) {
+        alert('请选择 CSV 或 Excel 文件');
+        return;
+      }
+
+      try {
+        if (fileExt === 'csv') {
+          await parseCSV(file);
+        } else if (fileExt === 'xlsx') {
+          await parseExcel(file);
+        }
+        showPreview();
+      } catch (err) {
+        alert('文件解析失败: ' + err.message);
+      }
+    }
+
+    async function parseCSV(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const csv = e.target.result;
+          const lines = csv.split('\n');
+          const headers = lines[0].split(',').map(h => h.trim());
+          
+          parsedData = [];
+          for (let i = 1; i < lines.length; i++) {
+            if (lines[i].trim() === '') continue;
+            
+            const values = lines[i].split(',').map(v => v.trim());
+            const row = {};
+            headers.forEach((header, index) => {
+              row[header] = values[index] || '';
+            });
+            parsedData.push(row);
+          }
+          resolve();
+        };
+        reader.onerror = reject;
+        reader.readAsText(file);
+      });
+    }
+
+    async function parseExcel(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            // 这里需要加载 XLSX 库
+            // 简化版本：提示用户使用 CSV 格式
+            alert('Excel 解析需要加载额外库，建议使用 CSV 格式');
+            reject(new Error('Please use CSV format'));
+          } catch (err) {
+            reject(err);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    function showPreview() {
+      const previewSection = document.getElementById('previewSection');
+      const previewTable = document.getElementById('previewTable');
+      const importBtn = document.getElementById('importBtn');
+      
+      if (parsedData.length === 0) {
+        alert('文件中没有数据');
+        return;
+      }
+
+      // 生成表格
+      let html = '<table><thead><tr>';
+      const headers = Object.keys(parsedData[0]);
+      headers.forEach(h => {
+        html += `<th>${h}</th>`;
+      });
+      html += '</tr></thead><tbody>';
+
+      parsedData.forEach((row, index) => {
+        html += '<tr>';
+        headers.forEach(h => {
+          html += `<td>${row[h] || '-'}</td>`;
+        });
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+
+      previewTable.innerHTML = html;
+      previewSection.style.display = 'block';
+      importBtn.style.display = 'inline-block';
+    }
+
+    async function startImport() {
+      const importSection = document.getElementById('importSection');
+      const progressFill = document.getElementById('progressFill');
+      const progressText = document.getElementById('progressText');
+      const importBtn = document.getElementById('importBtn');
+
+      importBtn.disabled = true;
+      importSection.style.display = 'block';
+
+      try {
+        // 转换数据格式
+        const rows = parsedData.map(row => ({
+          customerId: parseInt(row.customer_id) || 1,
+          orderNo: row.order_no || '',
+          country: row.country || 'DE',
+          city: row.city || '',
+          postcode: row.postcode || '',
+          street: row.street || '',
+          houseNo: row.house_no || '',
+          product: row.product || '',
+          qty: parseInt(row.quantity) || 1,
+          value: parseFloat(row.declared_value) || 0,
+          classification: row.classification || 'UNKNOWN',
+          needCustoms: row.need_customs === 'true' || row.need_customs === '1'
+        }));
+
+        // 分批导入
+        const batchSize = 50;
+        let imported = 0;
+
+        for (let i = 0; i < rows.length; i += batchSize) {
+          const batch = rows.slice(i, i + batchSize);
+          
+          const response = await fetch('/api/shipments/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rows: batch })
+          });
+
+          const data = await response.json();
+          if (data.ok) {
+            imported += data.insertedCount;
+            const progress = (imported / rows.length) * 100;
+            progressFill.style.width = progress + '%';
+            progressText.textContent = `已导入 ${imported} / ${rows.length} 条记录`;
+          }
+        }
+
+        progressText.textContent = `✅ 成功导入 ${imported} 条记录`;
+        setTimeout(() => {
+          window.location.href = '/shipments';
+        }, 2000);
+      } catch (err) {
+        progressText.textContent = '❌ 导入失败: ' + err.message;
+        importBtn.disabled = false;
+      }
+    }
+
+    function resetImport() {
+      selectedFile = null;
+      parsedData = [];
+      document.getElementById('previewSection').style.display = 'none';
+      document.getElementById('importSection').style.display = 'none';
+      document.getElementById('importBtn').style.display = 'none';
+      fileInput.value = '';
+    }
+  </script>
+</body>
+</html>
